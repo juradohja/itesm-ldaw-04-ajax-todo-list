@@ -8,22 +8,40 @@
     <div class="col-lg-12">
       <form class="form-inline" action="/tasks" method="POST">
         <div class="input-group w-100">
-          <input type="text" name="description" placeholder="I have to..." class="form-control">
+          <input type="text"
+                 name="description"
+                 id="taskDescription"
+                 placeholder="I have to..."
+                 class="form-control">
           <div class="input-group-append">
-            <input type="submit" value="Add" class="btn btn-primary">
+            <input type="button"
+                   value="Add"
+                   class="btn btn-primary"
+                   onclick="saveTask();">
           </div>
         </div>
       </form>
     </div>
   </div>
   <div class="row">
-    <div class="col-lg-12">
+    <div class="col-lg-12" id="tasksList">
       {{#each tasks}}
-      <div class="card my-3 {{#eq status 'done' }}bg-light{{/eq}}">
+      <div class="card my-3 {{#eq status 'done' }}bg-light{{/eq}}" id="taskCard-{{id}}">
         <div class="card-body">
           <p class="card-text">{{ description }}</p>
           {{#eq status 'pending'}}
-            <a href="#" class="card-link">Done</a>
+            <form method="POST" action="/done/{{id}}" id="taskForm-{{id}}">
+              <a href="javascript:;"
+                 class="card-link"
+                 onclick="markTaskAsDone({{id}});">Done</a>
+            </form>
+          {{/eq}}
+          {{#eq status 'done'}}
+            <form method="POST" action="/delete/{{id}}" id="taskForm-{{id}}">
+              <a href="javascript:;"
+                 class="card-link text-danger"
+                 onclick="deleteTask({{id}});">Delete</a>
+            </form>
           {{/eq}}
         </div>
       </div>
@@ -31,3 +49,116 @@
     </div>
   </div>
 </main>
+<script>
+  function saveTask() {
+    let description = document.getElementById("taskDescription").value;
+    let body = {
+      method: 'POST',
+      headers: {
+        Accept: 'application/json',
+        'Content-Type' : 'application/json'
+      },
+      body: JSON.stringify({description : description})
+    };
+    fetch('/tasks', body)
+      .then(response => {
+        if(response.ok) {
+          return response.json();
+        } else {
+          throw "Error en la llamada AJAX";
+        }
+      })
+      .then(task => {
+        document.getElementById('taskDescription').value = '';
+        addTask(task);
+      })
+      .catch(error => {
+        console.log("Error: ", error);
+      });
+  }
+
+  function addTask(task) {
+    let html = `
+        <div class="card my-3" id="taskCard-${task.id}">
+        <div class="card-body">
+          <p class="card-text">${task.description}</p>
+            <form method="POST" action="/done/${task.id}" id="taskForm-${task.id}">
+              <a href="javascript:;"
+                 class="card-link"
+                 onclick="markTaskAsDone(${task.id});">Done</a>
+            </form>
+        </div>
+      </div>
+    `;
+    let node = document.createRange().createContextualFragment(html);
+    document.getElementById('tasksList').prepend(node);
+  }
+
+  function markTaskAsDone(id) {
+    let body = {
+      method: 'PUT',
+      headers: {
+        Accept: 'application/json',
+        'Content-Type' : 'application/json'
+      },
+      body: ""
+    };
+    let fetchRoute = '/done/' + id;
+    fetch(fetchRoute, body)
+            .then(response => {
+              if(response.ok) {
+                return response.json();
+              } else {
+                throw "Error en la llamada AJAX";
+              }
+            })
+            .then(task => {
+              updateTask(task);
+            })
+            .catch(error => {
+              console.log("Error: ", error);
+            });
+  }
+
+  function updateTask(task){
+    let html = '<a href="javascript:;"\n' +
+            'class="card-link text-danger"\n' +
+            'onclick="deleteTask(' + task.id + ');">Delete</a>';
+    let formId = "taskForm-" + task.id;
+    let cardId = "taskCard-" + task.id;
+    document.getElementById(formId).innerHTML = html;
+    document.getElementById(cardId).classList.add('bg-light');
+  }
+
+  function deleteTask(id){
+    let body = {
+      method: 'DELETE',
+      headers: {
+        Accept: 'application/json',
+        'Content-Type' : 'application/json'
+      },
+      body: ""
+    };
+    let fetchRoute = '/delete/' + id;
+    fetch(fetchRoute, body)
+            .then(response => {
+              if(response.ok) {
+                return response.json();
+              } else {
+                throw "Error en la llamada AJAX";
+              }
+            })
+            .then(task => {
+              hideTask(task);
+            })
+            .catch(error => {
+              console.log("Error: ", error);
+            });
+  }
+
+  function hideTask(task){
+    let cardId = "taskCard-" + task.id;
+    document.getElementById(cardId).remove();
+  }
+
+</script>
